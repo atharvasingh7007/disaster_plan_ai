@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* DisasterReady AI — calm, practical, household-aware design system.
+   All colors HSL. Inspired by emergency-ops dashboards: deep navy bg,
+   warm signal amber for action, mint for safety/forecast cues. */
+
+@layer base {
+  :root {
+    --background: 220 30% 97%;
+    --foreground: 222 35% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 35% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 35% 12%;
+
+    /* Deep readiness navy */
+    --primary: 218 60% 22%;
+    --primary-foreground: 40 30% 98%;
+    --primary-glow: 218 70% 38%;
+
+    /* Signal amber — action / preparedness */
+    --secondary: 32 95% 56%;
+    --secondary-foreground: 222 40% 10%;
+
+    --muted: 220 20% 93%;
+    --muted-foreground: 220 12% 42%;
+
+    /* Mint — safety / forecast calm */
+    --accent: 162 52% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 78% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 18% 88%;
+    --input: 220 18% 88%;
+    --ring: 218 60% 30%;
+
+    --radius: 0.75rem;
+
+    --gradient-hero: linear-gradient(135deg, hsl(218 60% 22%) 0%, hsl(218 70% 38%) 60%, hsl(162 52% 45%) 130%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(220 30% 98%) 100%);
+    --shadow-soft: 0 4px 16px -4px hsl(218 40% 20% / 0.08);
+    --shadow-elevated: 0 12px 40px -12px hsl(218 60% 22% / 0.18);
+
+    --sidebar-background: 218 50% 14%;
+    --sidebar-foreground: 220 25% 86%;
+    --sidebar-primary: 32 95% 56%;
+    --sidebar-primary-foreground: 222 40% 10%;
+    --sidebar-accent: 218 45% 20%;
+    --sidebar-accent-foreground: 220 30% 96%;
+    --sidebar-border: 218 40% 22%;
+    --sidebar-ring: 32 95% 56%;
+  }
+
+  .dark {
+    --background: 222 40% 8%;
+    --foreground: 220 25% 94%;
+    --card: 222 38% 11%;
+    --card-foreground: 220 25% 94%;
+    --popover: 222 38% 11%;
+    --popover-foreground: 220 25% 94%;
+    --primary: 218 70% 60%;
+    --primary-foreground: 222 40% 10%;
+    --primary-glow: 218 80% 70%;
+    --secondary: 32 95% 60%;
+    --secondary-foreground: 222 40% 10%;
+    --muted: 222 30% 16%;
+    --muted-foreground: 220 15% 65%;
+    --accent: 162 52% 50%;
+    --accent-foreground: 222 40% 10%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 222 28% 20%;
+    --input: 222 28% 20%;
+    --ring: 218 70% 60%;
+    --sidebar-background: 222 45% 9%;
+    --sidebar-foreground: 220 25% 86%;
+    --sidebar-primary: 32 95% 60%;
+    --sidebar-primary-foreground: 222 40% 10%;
+    --sidebar-accent: 222 40% 14%;
+    --sidebar-accent-foreground: 220 30% 96%;
+    --sidebar-border: 222 40% 16%;
+    --sidebar-ring: 32 95% 60%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "cv11";
+  }
+  h1, h2, h3, h4 { @apply font-semibold tracking-tight; }
+}
+
+@layer components {
+  .chat-bubble-user {
+    @apply rounded-2xl rounded-br-sm bg-primary text-primary-foreground px-4 py-3 max-w-[85%] shadow-[var(--shadow-soft)];
+  }
+  .chat-bubble-assistant {
+    @apply rounded-2xl rounded-bl-sm bg-card text-card-foreground border border-border px-4 py-3 max-w-[85%] shadow-[var(--shadow-soft)];
+  }
+  .prose-chat p { @apply leading-relaxed my-2; }
+  .prose-chat ul { @apply list-disc pl-5 my-2 space-y-1; }
+  .prose-chat ol { @apply list-decimal pl-5 my-2 space-y-1; }
+  .prose-chat strong { @apply font-semibold text-foreground; }
+  .prose-chat code { @apply rounded bg-muted px-1.5 py-0.5 text-sm; }
+  .prose-chat h1, .prose-chat h2, .prose-chat h3 { @apply mt-3 mb-2; }
+}
