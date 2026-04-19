@@ -1,0 +1,7 @@
+project_id = "jopfooqsadhrlqqszwzj"
+
+[auth.email]
+enable_confirmations = false
+
+[functions.forecast-analyze]
+verify_jwt = false
