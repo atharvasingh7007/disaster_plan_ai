@@ -3,14 +3,27 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Download, Trash2, FileDown } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { FileText, Download, Trash2, FileDown, LogIn } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
 
 type Plan = { id: string; title: string; content: string; created_at: string; location: string | null };
 
 export default function Plans() {
   const { user, isGuest } = useAuth();
+  const navigate = useNavigate();
   const [plans, setPlans] = useState<Plan[]>([]);
 
   useEffect(() => {
@@ -121,16 +134,21 @@ export default function Plans() {
 
   if (!user) {
     return (
-      <div className="p-8 max-w-2xl mx-auto">
-        <h1 className="text-2xl font-semibold flex items-center gap-2">
-          <FileText className="h-5 w-5 text-secondary" />
-          Plans
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          {isGuest
-            ? "Guest mode doesn't save plans. Sign in to save and download them."
-            : "Sign in to view your saved plans."}
-        </p>
+      <div className="h-full overflow-y-auto">
+        <div className="p-8 max-w-2xl mx-auto text-center space-y-4 py-20">
+          <div className="inline-flex h-14 w-14 rounded-2xl items-center justify-center bg-secondary/10">
+            <FileText className="h-7 w-7 text-secondary" />
+          </div>
+          <h1 className="text-2xl font-semibold">Your Saved Plans</h1>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            {isGuest
+              ? "Sign in to save and download preparedness plans as PDF or Markdown. Guest mode doesn't persist plans."
+              : "Sign in to view, export, and manage your saved preparedness plans."}
+          </p>
+          <Button onClick={() => navigate("/auth")} className="mt-2">
+            <LogIn className="h-4 w-4 mr-2" /> Sign in to get started
+          </Button>
+        </div>
       </div>
     );
   }
@@ -158,15 +176,33 @@ export default function Plans() {
                     <p className="text-sm text-muted-foreground line-clamp-2 mt-2">{p.content.slice(0, 200)}</p>
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <Button size="sm" variant="default" onClick={() => downloadPdf(p)} title="Download PDF">
+                    <Button size="sm" variant="default" onClick={() => downloadPdf(p)} aria-label={`Download ${p.title} as PDF`}>
                       <FileDown className="h-4 w-4" />
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => downloadMd(p)} title="Download Markdown">
+                    <Button size="sm" variant="outline" onClick={() => downloadMd(p)} aria-label={`Download ${p.title} as Markdown`}>
                       <Download className="h-4 w-4" />
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => remove(p.id)} title="Delete">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="ghost" aria-label={`Delete ${p.title}`}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete this plan?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            "{p.title}" will be permanently deleted. This cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => remove(p.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               </Card>

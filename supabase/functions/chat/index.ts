@@ -9,17 +9,63 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Expose-Headers": "X-Sources",
 };
+
+interface Profile {
+  display_name?: string;
+  home_location?: string;
+  resources?: string;
+  transport?: string;
+  pets?: string;
+  important_documents?: string;
+  emergency_contacts?: string;
+  special_notes?: string;
+}
+
+interface Member {
+  name: string;
+  age?: number | string;
+  relationship?: string;
+  vulnerabilities?: string;
+}
+
+interface Hit {
+  similarity: number;
+  title: string;
+  source: string;
+  hazard: string | null;
+  content: string;
+}
+
+interface Message {
+  role: string;
+  content: string;
+}
 
 const SYSTEM_BASE = `You are DisasterReady AI — a calm, practical, household-aware disaster preparedness assistant.
 
 Voice: calm, supportive, specific, never alarmist. No textbook lectures.
 
-Behavior rules:
-- For URGENT questions ("there's smoke", "earthquake just hit"), give the direct safety action FIRST in 1–3 short steps, then context.
-- For PLAN requests, ask only the missing critical details (location, who lives there, vulnerabilities, supplies on hand). Do not re-ask what the user has already told you or what's in their household profile.
-- Center vulnerable people (e.g. "grandmother cannot walk", "infant", "oxygen-dependent") in the response — adapt every recommendation to that constraint.
-- If the user says "near me" without a saved location, ask for a city/region or offer approximate IP detection (warn it may be inaccurate).
+Before responding, perform silent disaster triage.
+Do not show this triage to the user.
+
+Silently determine:
+- disaster_type
+- stage_of_disaster (happening_now, expected_soon, general_planning, recovery_after_event, unclear)
+- urgency_level
+- known_details_from_user_and_profile
+- highest_impact_missing_details
+
+Response rules:
+- Ask only the 1-2 missing questions whose answers would most change the safety advice for that specific disaster type and stage.
+- Do not use the same generic questions for every disaster.
+- Do not ask medical, household, transport, or supply questions unless they are relevant to the identified disaster and urgency.
+- If the user is in immediate danger (happening_now), give immediate safety action FIRST in 1–3 short steps before asking any questions. Do not create a long plan.
+- If expected_soon, ask time available first if unknown. Ask hazard-specific exposure question second. Give a staged preparation plan.
+- If general_planning, ask 1-2 planning questions. Then generate a structured preparedness plan.
+- If recovery_after_event, focus on safety checks, injuries, utilities, contamination, documentation, cleanup safety, and support resources.
+- If unclear, ask one clarifying question: "Is this happening now, expected soon, or are you preparing generally?"
 - Never invent a location. Never assume a country.
 - Use markdown: short paragraphs, bold key actions, bulleted checklists. Keep replies tight.
 - When you produce a full preparedness PLAN, structure it with clear sections: Overview, Before, During, After, Go-bag, Household-specific notes.
@@ -31,6 +77,12 @@ Deno.serve(async (req) => {
   try {
     const { messages, planMode, householdContext } = await req.json();
     if (!Array.isArray(messages)) return j({ error: "messages must be an array" }, 400);
+    if (messages.length > 50) return j({ error: "Too many messages (max 50)" }, 400);
+    for (const m of messages) {
+      if (typeof m.content !== "string" || m.content.length > 5000) {
+        return j({ error: "Message too long (max 5000 characters)" }, 400);
+      }
+    }
 
     const AI_GATEWAY_API_KEY = Deno.env.get("AI_GATEWAY_API_KEY");
     const AI_GATEWAY_URL = Deno.env.get("AI_GATEWAY_URL");
@@ -59,7 +111,7 @@ Deno.serve(async (req) => {
     }
 
     // ----- RAG retrieval on the latest user message -----
-    const lastUser = [...messages].reverse().find((m: any) => m.role === "user")?.content || "";
+    const lastUser = [...messages].reverse().find((m: Message) => m.role === "user")?.content || "";
     let ragBlock = "";
     let sources: { title: string; source: string; hazard: string | null }[] = [];
     if (lastUser && lastUser.length > 4) {
@@ -71,14 +123,14 @@ Deno.serve(async (req) => {
           Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
         );
         const { data: hits } = await supaSr.rpc("match_kb_documents", {
-          query_embedding: literal as any,
+          query_embedding: literal as unknown as string,
           match_count: 4,
         });
-        const filtered = (hits ?? []).filter((h: any) => h.similarity > 0.05).slice(0, 4);
+        const filtered = (hits ?? []).filter((h: Hit) => h.similarity > 0.05).slice(0, 4);
         if (filtered.length) {
-          sources = filtered.map((h: any) => ({ title: h.title, source: h.source, hazard: h.hazard }));
+          sources = filtered.map((h: Hit) => ({ title: h.title, source: h.source, hazard: h.hazard }));
           ragBlock = filtered
-            .map((h: any) => `[${h.source} — ${h.title}]\n${h.content}`)
+            .map((h: Hit) => `[${h.source} — ${h.title}]\n${h.content}`)
             .join("\n\n---\n\n");
         }
       } catch (e) { console.warn("RAG failed", e); }
@@ -121,7 +173,6 @@ Deno.serve(async (req) => {
         ...corsHeaders,
         "Content-Type": "text/event-stream",
         "X-Sources": sourceHeader,
-        "Access-Control-Expose-Headers": "X-Sources",
       },
     });
   } catch (e) {
@@ -137,7 +188,7 @@ function j(body: unknown, status = 200) {
   });
 }
 
-function buildProfileBlock(prof: any, members: any[] | null): string {
+function buildProfileBlock(prof: Profile | null, members: Member[] | null): string {
   if (!prof && (!members || members.length === 0)) return "";
   const lines: string[] = [];
   if (prof?.display_name) lines.push(`Name: ${prof.display_name}`);

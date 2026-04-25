@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
       const literal = "[" + embedding.join(",") + "]";
       const { error: upErr } = await supa
         .from("kb_documents")
-        .update({ embedding: literal as any })
+        .update({ embedding: literal as unknown as string })
         .eq("id", row.id);
       if (upErr) { console.error("update err", upErr); failures.push(row.id); }
       else embedded++;

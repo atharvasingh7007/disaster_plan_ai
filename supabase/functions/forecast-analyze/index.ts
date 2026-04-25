@@ -31,6 +31,22 @@ Deno.serve(async (req) => {
       lat = hit.latitude;
       lon = hit.longitude;
       location_name = `${hit.name}${hit.admin1 ? ", " + hit.admin1 : ""}${hit.country ? ", " + hit.country : ""}`;
+    } else if (lat != null && lon != null && !location_name) {
+      try {
+        const rg = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
+          { headers: { "User-Agent": "DisasterReady-AI-App" } }
+        ).then((r) => r.json());
+        if (rg?.address) {
+          const a = rg.address;
+          const city = a.city || a.town || a.village || a.county || a.state_district;
+          const state = a.state;
+          if (city && state) location_name = `${city}, ${state}`;
+          else if (city) location_name = city;
+        }
+      } catch (e) {
+        console.warn("Reverse geocode failed", e);
+      }
     }
 
     if (lat == null || lon == null) return j({ error: "lat/lon or location_name required" }, 400);

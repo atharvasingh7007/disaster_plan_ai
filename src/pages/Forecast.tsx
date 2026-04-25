@@ -88,10 +88,9 @@ export default function Forecast() {
       if (p?.home_lat && p?.home_lon) {
         runFetch({ lat: p.home_lat, lon: p.home_lon, name: p.home_location ?? undefined });
       } else if (p?.home_location) {
-        setQuery(p.home_location);
+      setQuery(p.home_location);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   async function runFetch(args: { lat?: number; lon?: number; name?: string }) {
@@ -105,9 +104,16 @@ export default function Forecast() {
         },
       });
       if (error) throw error;
-      if ((res as any)?.error) throw new Error((res as any).error);
-      setData(res as ForecastData);
-    } catch (e) {
+      const resData = res as Record<string, unknown> | null;
+      if (resData?.error) throw new Error(String(resData.error));
+      const castRes = res as ForecastData;
+      setData(castRes);
+      if (castRes.location?.name) {
+        setQuery(castRes.location.name);
+      } else if (args.name) {
+        setQuery(args.name);
+      }
+    } catch (e: unknown) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Forecast failed");
     } finally {

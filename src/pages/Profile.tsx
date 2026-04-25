@@ -8,7 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { User, MapPin, Loader2, Plus, Trash2, Users } from "lucide-react";
+import { User, MapPin, Loader2, Plus, Trash2, Users, LogIn } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import type { Tables } from "@/integrations/supabase/types";
+
+type ProfileData = Partial<Tables<"profiles">>;
 
 interface Member {
   id: string;
@@ -21,7 +25,8 @@ interface Member {
 
 export default function Profile() {
   const { user } = useAuth();
-  const [p, setP] = useState<any>({});
+  const navigate = useNavigate();
+  const [p, setP] = useState<ProfileData>({});
   const [busy, setBusy] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
@@ -41,14 +46,19 @@ export default function Profile() {
 
   if (!user)
     return (
-      <div className="p-8 max-w-2xl mx-auto">
-        <h1 className="text-2xl font-semibold flex items-center gap-2">
-          <User className="h-5 w-5 text-secondary" />
-          Profile
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Sign in to set up your household profile so the assistant can give specific, household-aware guidance.
-        </p>
+      <div className="h-full overflow-y-auto">
+        <div className="p-8 max-w-2xl mx-auto text-center space-y-4 py-20">
+          <div className="inline-flex h-14 w-14 rounded-2xl items-center justify-center bg-secondary/10">
+            <User className="h-7 w-7 text-secondary" />
+          </div>
+          <h1 className="text-2xl font-semibold">Household Profile</h1>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Sign in to set up your household profile. The assistant uses this to give specific, personalized guidance for your family.
+          </p>
+          <Button onClick={() => navigate("/auth")} className="mt-2">
+            <LogIn className="h-4 w-4 mr-2" /> Sign in to get started
+          </Button>
+        </div>
       </div>
     );
 
@@ -208,7 +218,7 @@ export default function Profile() {
                   )}
                   {m.notes && <div className="text-muted-foreground text-xs mt-0.5">{m.notes}</div>}
                 </div>
-                <Button size="sm" variant="ghost" onClick={() => removeMember(m.id)}>
+                <Button size="sm" variant="ghost" onClick={() => removeMember(m.id)} aria-label={`Remove ${m.name}`}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>

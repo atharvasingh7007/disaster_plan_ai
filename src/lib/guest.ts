@@ -10,4 +10,15 @@ export function getGuestMessages(): GuestMsg[] {
 export function setGuestMessages(msgs: GuestMsg[]) {
   localStorage.setItem(GUEST_KEY, JSON.stringify(msgs.slice(-40)));
 }
-export function clearGuest() { localStorage.removeItem(GUEST_KEY); }
+export function clearGuest() {
+  localStorage.removeItem(GUEST_KEY);
+  localStorage.removeItem("dr_guest_profile");
+}
+
+export function getGuestProfile(): any {
+  try { return JSON.parse(localStorage.getItem("dr_guest_profile") || "{}"); }
+  catch { return {}; }
+}
+export function setGuestProfile(p: any) {
+  localStorage.setItem("dr_guest_profile", JSON.stringify(p));
+}
