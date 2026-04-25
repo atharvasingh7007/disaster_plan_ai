@@ -96,11 +96,44 @@ export default function Forecast() {
   async function runFetch(args: { lat?: number; lon?: number; name?: string }) {
     setLoading(true);
     try {
+      let finalLat = args.lat;
+      let finalLon = args.lon;
+      let finalName = args.name;
+
+      // 1. Detect if name is actually a coordinate string "lat, lon"
+      if (finalName && finalLat == null && finalLon == null) {
+        const coordMatch = finalName.match(/^(-?\d+(\.\d+)?)[,\s]+(-?\d+(\.\d+)?)$/);
+        if (coordMatch) {
+          finalLat = parseFloat(coordMatch[1]);
+          finalLon = parseFloat(coordMatch[3]);
+          finalName = undefined;
+        }
+      }
+
+      // 2. Reverse geocode on frontend to bypass edge function limitations
+      if (finalLat != null && finalLon != null && !finalName) {
+        try {
+          const rg = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${finalLat}&lon=${finalLon}`,
+            { headers: { "User-Agent": "DisasterReady-AI-App" } }
+          ).then((r) => r.json());
+          if (rg?.address) {
+            const a = rg.address;
+            const city = a.city || a.town || a.village || a.county || a.state_district;
+            const state = a.state;
+            if (city && state) finalName = `${city}, ${state}`;
+            else if (city) finalName = city;
+          }
+        } catch (e) {
+          console.warn("Frontend reverse geocode failed", e);
+        }
+      }
+
       const { data: res, error } = await supabase.functions.invoke("forecast-analyze", {
         body: {
-          lat: args.lat,
-          lon: args.lon,
-          location_name: args.name,
+          lat: finalLat,
+          lon: finalLon,
+          location_name: finalName,
         },
       });
       if (error) throw error;
