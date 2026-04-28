@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { User, MapPin, Loader2, Plus, Trash2, Users, LogIn } from "lucide-react";
+import { User, MapPin, Loader2, Plus, Trash2, Users, LogIn, LocateFixed } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -106,6 +106,44 @@ export default function Profile() {
     }
   };
 
+  const detectLocation = async () => {
+    if (!navigator.geolocation) return toast.error("Geolocation not supported by your browser");
+    setGeocoding(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const rg = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
+            { headers: { "User-Agent": "DisasterReady-AI-App" } }
+          ).then((r) => r.json());
+          if (rg?.address) {
+            const a = rg.address;
+            const city = a.city || a.town || a.village || a.county || a.state_district;
+            const state = a.state;
+            const country = a.country;
+            const parts = [city, state, country].filter(Boolean);
+            const name = parts.join(", ") || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+            setP({ ...p, home_location: name, home_lat: latitude, home_lon: longitude });
+            toast.success(`Location detected: ${name}`);
+          } else {
+            setP({ ...p, home_lat: latitude, home_lon: longitude });
+            toast.error("Could not resolve address, but coordinates saved");
+          }
+        } catch {
+          toast.error("Reverse geocoding failed");
+        } finally {
+          setGeocoding(false);
+        }
+      },
+      (err) => {
+        setGeocoding(false);
+        toast.error(err.message || "Location access denied");
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   const addMember = async () => {
     if (!newMember.name?.trim()) return toast.error("Name is required");
     if (newMember.name.length > 100) return toast.error("Name too long");
@@ -168,8 +206,11 @@ export default function Profile() {
                 onChange={(e) => setP({ ...p, home_location: e.target.value })}
                 placeholder="City, region, country"
               />
-              <Button type="button" variant="outline" onClick={geocodeHome} disabled={geocoding}>
+              <Button type="button" variant="outline" onClick={geocodeHome} disabled={geocoding} title="Look up typed location">
                 {geocoding ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+              </Button>
+              <Button type="button" variant="outline" onClick={detectLocation} disabled={geocoding} title="Use my current location">
+                {geocoding ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
               </Button>
             </div>
             {p.home_lat != null && p.home_lon != null && (

@@ -32,6 +32,7 @@ export default function Assistant() {
   const [input, setInput] = useState("");
   const [planMode, setPlanMode] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [thinking, setThinking] = useState(false);
   const [suggestedProfile, setSuggestedProfile] = useState<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -136,15 +137,51 @@ export default function Assistant() {
     let assistantSoFar = "";
     let capturedSources: Source[] = [];
     const assistantMsgId = nextMsgId();
-    const upsert = (chunk: string) => {
-      assistantSoFar += chunk;
+
+    // Typewriter buffer: incoming SSE text goes here, a timer drains it word-by-word
+    let wordBuffer: string[] = [];
+    let displayedSoFar = "";
+    let drainTimer: ReturnType<typeof setInterval> | null = null;
+    let streamDone = false;
+
+    const flushDisplay = (text: string) => {
+      displayedSoFar = text;
       setMessages((prev) => {
         const last = prev[prev.length - 1];
         if (last?.role === "assistant" && last.id === assistantMsgId) {
-          return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar, sources: capturedSources } : m);
+          return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: displayedSoFar, sources: capturedSources } : m);
         }
-        return [...prev, { id: assistantMsgId, role: "assistant", content: assistantSoFar, sources: capturedSources }];
+        return [...prev, { id: assistantMsgId, role: "assistant", content: displayedSoFar, sources: capturedSources }];
       });
+    };
+
+    const startDrain = () => {
+      if (drainTimer) return;
+      drainTimer = setInterval(() => {
+        if (wordBuffer.length > 0) {
+          // Drain faster when buffer is large (catch-up), slower when small (natural feel)
+          const batch = wordBuffer.length > 20 ? 4 : wordBuffer.length > 8 ? 2 : 1;
+          const words = wordBuffer.splice(0, batch);
+          displayedSoFar += words.join("");
+          flushDisplay(displayedSoFar);
+        } else if (streamDone) {
+          // Final flush
+          if (displayedSoFar !== assistantSoFar) {
+            flushDisplay(assistantSoFar);
+          }
+          clearInterval(drainTimer!);
+          drainTimer = null;
+        }
+      }, 30);
+    };
+
+    const enqueueChunk = (chunk: string) => {
+      assistantSoFar += chunk;
+      // Split into individual words while keeping whitespace attached
+      const words = chunk.match(/\S+\s*|\s+/g) || [chunk];
+      wordBuffer.push(...words);
+      if (thinking) setThinking(false);
+      startDrain();
     };
 
     try {
@@ -161,6 +198,8 @@ export default function Assistant() {
         reqBody.householdContext = JSON.stringify(getGuestProfile());
       }
 
+      setThinking(true);
+
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers,
@@ -173,6 +212,7 @@ export default function Assistant() {
         else if (resp.status === 402) toast.error("AI credits exhausted. Add credits in workspace settings.");
         else toast.error(err.error || "Chat failed");
         setLoading(false);
+        setThinking(false);
         return;
       }
       if (!resp.body) throw new Error("no body");
@@ -205,13 +245,27 @@ export default function Assistant() {
           try {
             const parsed = JSON.parse(payload);
             const c = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (c) upsert(c);
+            if (c) enqueueChunk(c);
           } catch {
             buf = line + "\n" + buf; break;
           }
         }
         if (shouldBreak) break;
       }
+
+      // Mark stream as done and wait for typewriter to finish
+      streamDone = true;
+      setThinking(false);
+      await new Promise<void>((resolve) => {
+        const check = setInterval(() => {
+          if (wordBuffer.length === 0) {
+            clearInterval(check);
+            // Final sync
+            flushDisplay(assistantSoFar);
+            resolve();
+          }
+        }, 50);
+      });
 
       // persist assistant message
       if (user && sessionId && assistantSoFar) {
@@ -245,6 +299,8 @@ export default function Assistant() {
       toast.error(e instanceof Error ? e.message : "Stream error");
     } finally {
       setLoading(false);
+      setThinking(false);
+      if (drainTimer) clearInterval(drainTimer);
     }
   };
 
@@ -386,8 +442,19 @@ export default function Assistant() {
               </div>
             )}
             {messages.map((m) => <ChatMessage key={m.id} role={m.role} content={m.content} sources={m.sources} />)}
-            {loading && messages[messages.length - 1]?.role === "user" && (
-              <ChatMessage role="assistant" content="" />
+
+            {/* Thinking indicator — shows before any text arrives */}
+            {thinking && (
+              <div className="flex w-full justify-start">
+                <div className="chat-bubble-assistant flex items-center gap-2">
+                  <div className="flex gap-1">
+                    <span className="h-2 w-2 rounded-full bg-primary/60 animate-bounce [animation-delay:0ms]"></span>
+                    <span className="h-2 w-2 rounded-full bg-primary/60 animate-bounce [animation-delay:150ms]"></span>
+                    <span className="h-2 w-2 rounded-full bg-primary/60 animate-bounce [animation-delay:300ms]"></span>
+                  </div>
+                  <span className="text-sm text-muted-foreground italic">Thinking…</span>
+                </div>
+              </div>
             )}
 
             {suggestedProfile && (
