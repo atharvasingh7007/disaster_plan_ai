@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Send, Sparkles, Save, Trash2 } from "lucide-react";
+import { Plus, Send, Sparkles, Save, Trash2, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import ChatMessage from "@/components/ChatMessage";
 import { getGuestMessages, setGuestMessages, getGuestProfile, setGuestProfile } from "@/lib/guest";
@@ -396,11 +396,15 @@ export default function Assistant() {
 
       {/* Main chat */}
       <div className="flex-1 flex flex-col">
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-card/50 backdrop-blur">
+        <div className={cn(
+          "flex items-center justify-between px-4 py-3 border-b backdrop-blur transition-colors duration-300",
+          planMode ? "bg-secondary/10 border-secondary/30" : "bg-card/50"
+        )}>
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-secondary" />
-            <h1 className="font-semibold">Assistant</h1>
+            {planMode ? <ClipboardList className="h-4 w-4 text-secondary" /> : <Sparkles className="h-4 w-4 text-secondary" />}
+            <h1 className="font-semibold">{planMode ? "Plan Generator" : "Assistant"}</h1>
             {isGuest && <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Guest</span>}
+            {planMode && <span className="text-xs px-2 py-0.5 rounded-full bg-secondary/20 text-secondary font-medium animate-in fade-in">📋 Plan Mode</span>}
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
@@ -415,24 +419,44 @@ export default function Assistant() {
           </div>
         </div>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6">
+        <div ref={scrollRef} className={cn(
+          "flex-1 overflow-y-auto px-4 py-6 transition-colors duration-300",
+          planMode && "bg-secondary/[0.02]"
+        )}>
           <div className="max-w-3xl mx-auto space-y-4">
+            {planMode && messages.length > 0 && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-secondary/10 border border-secondary/20 text-sm text-secondary mb-4 animate-in fade-in slide-in-from-top-2">
+                <ClipboardList className="h-4 w-4 shrink-0" />
+                <span>Plan Mode is active — I'll use everything from our conversation to generate a comprehensive preparedness plan.</span>
+              </div>
+            )}
             {messages.length === 0 && (
               <div className="text-center py-16 space-y-3">
                 <div className="inline-flex h-12 w-12 rounded-2xl items-center justify-center" style={{ background: "var(--gradient-hero)" }}>
-                  <Sparkles className="h-6 w-6 text-primary-foreground" />
+                  {planMode ? <ClipboardList className="h-6 w-6 text-primary-foreground" /> : <Sparkles className="h-6 w-6 text-primary-foreground" />}
                 </div>
-                <h2 className="text-xl font-semibold">How can I help you prepare?</h2>
+                <h2 className="text-xl font-semibold">{planMode ? "Let's build your preparedness plan" : "How can I help you prepare?"}</h2>
                 <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Ask anything — from "what should be in my earthquake kit" to "build a wildfire plan for my family with a grandmother who can't walk."
+                  {planMode
+                    ? "Tell me about the disaster you want to prepare for, and I'll create a complete, personalized plan for your household."
+                    : 'Ask anything — from "what should be in my earthquake kit" to "build a wildfire plan for my family with a grandmother who can\'t walk."'
+                  }
                 </p>
                 <div className="grid sm:grid-cols-2 gap-2 max-w-xl mx-auto pt-4">
-                  {[
-                    "Build a hurricane plan for a family of 4 with a baby",
-                    "What do I do if I smell gas right now?",
-                    "Earthquake go-bag for a small apartment",
-                    "Wildfire evacuation checklist with two cats",
-                  ].map((p) => (
+                  {(planMode
+                    ? [
+                        "Create a flood preparedness plan for my family",
+                        "Build an earthquake survival plan for a 3-story apartment",
+                        "Wildfire evacuation plan with elderly parents and pets",
+                        "Hurricane preparedness for a coastal home with children",
+                      ]
+                    : [
+                        "Build a hurricane plan for a family of 4 with a baby",
+                        "What do I do if I smell gas right now?",
+                        "Earthquake go-bag for a small apartment",
+                        "Wildfire evacuation checklist with two cats",
+                      ]
+                  ).map((p) => (
                     <button key={p} onClick={() => setInput(p)}
                       className="text-left text-sm p-3 rounded-lg border bg-card hover:bg-muted transition">
                       {p}
